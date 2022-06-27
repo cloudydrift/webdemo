@@ -1,6 +1,10 @@
+#include "webdemo.h"
 #include <sys/socket.h>
 #include <netdb.h>
-#include "netdemo.h"
+#include <sys/mman.h>
+#include <fcntl.h>
+#include <sys/wait.h>
+#include <signal.h>
 
 #define LISTENQ 1024
 

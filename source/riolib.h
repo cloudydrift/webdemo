@@ -1,7 +1,5 @@
 /* robust I/O lib */
-#include <sys/stat.h>
-#include <dirent.h>
-#include "netdemo.h"
+#include "webdemo.h"
 
 #define MAXBUF 8192
 #define MAXLINE 8192

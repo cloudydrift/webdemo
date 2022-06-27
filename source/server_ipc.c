@@ -2,6 +2,7 @@
 #include "socketlib.h"
 
 void echo(int connfd);
+void sigchld_handler(int sig);
 
 int main(int argc, char *argv[]) {
 	int listenfd, connfd;
@@ -14,14 +15,17 @@ int main(int argc, char *argv[]) {
 		exit(0);
 	}
 
+    signal(SIGCHLD, sigchld_handler);
 	listenfd = open_listenfd(argv[1]);
-
 	while (1) {
 		clientlen = sizeof(clientaddr);
 		connfd = accept(listenfd, (SA *)&clientaddr, &clientlen);
-		getnameinfo((SA *)&clientaddr, clientlen, client_hostname, MAXLINE, client_port, MAXLINE, 0);
-		printf("Connected to (%s, %s)\n", client_hostname, client_port);
-		echo(connfd);
+        if (fork == 0) {
+            close(listenfd);
+            echo(connfd);
+            close(connfd);
+            exit(0);
+        }
 		close(connfd);
 	}
 
@@ -39,4 +43,10 @@ void echo(int connfd) {
 		printf("server received %d bytes\n", (int)n);
 		rio_writen(connfd, buf, n);
 	}
+}
+
+void sigchld_handler(int sig) {
+    while (waitpid(-1, 0, WNOHANG) > 0)
+        ;
+    return;
 }
