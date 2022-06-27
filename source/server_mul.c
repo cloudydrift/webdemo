@@ -31,6 +31,8 @@ int main(int argc, char *argv[]) {
         if (FD_ISSET(listenfd, &ready_set)) {
             clientlen = sizeof(clientaddr);
             connfd = accept(listenfd, (SA *)&clientaddr, &clientlen);
+            getnameinfo((SA *)&clientaddr, clientlen, client_hostname, MAXLINE, client_port, MAXLINE, 0);
+            printf("Connected with (%s, %s)", client_hostname, client_port);
             echo(connfd);
             close(connfd);
         }
@@ -45,8 +47,10 @@ void echo(int connfd) {
 	rio_readinitb(&rio, connfd);
 
 	while ((n = rio_readlineb(&rio, buf, MAXLINE)) != 0) {
-		printf("server received %d bytes\n", (int)n);
-		rio_writen(connfd, buf, n);
+		printf("%s", buf);
+        sprintf(buf, "Server received %d bytes.\n", (int)n);
+        n = strlen(buf);
+		rio_writen(connfd, buf, n+1);
 	}
 }
 
