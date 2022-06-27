@@ -1,10 +1,12 @@
 #include "riolib.h"
 #include "socketlib.h"
 
+void echo(int connfd);
+
 int main(int argc, char *argv[]) {
 	int listenfd, connfd;
-	socketlen_t clientlen;
-	struct socketaddr_storage clientaddr;
+	socklen_t clientlen;
+	struct sockaddr_storage clientaddr;
 	char client_hostname[MAXLINE], client_port[MAXLINE];
 
 	if (argc != 2) {
@@ -26,7 +28,7 @@ int main(int argc, char *argv[]) {
 	return 0;
 }
 
-inline void echo(int connfd) {
+void echo(int connfd) {
 	size_t n;
 	char buf[MAXLINE];
 	rio_t rio;
@@ -35,6 +37,6 @@ inline void echo(int connfd) {
 
 	while ((n = rio_readlineb(&rio, buf, MAXLINE)) != 0) {
 		printf("server received %d bytes\n", (int)n);
-		rio_written(connfd, buf, n);
+		rio_writen(connfd, buf, n);
 	}
 }
