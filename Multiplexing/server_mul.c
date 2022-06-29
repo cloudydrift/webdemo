@@ -1,14 +1,16 @@
 #include "socklib.h"
-#include <sys/select.h>
 
-void echo(int connfd);
-void command(void);
+void init_pool(int listenfd, Pool *p);
+void add_client(int connfd, Pool *p);
+void check_clients(Pool *p);
+
+int byte_cnt = 0;
 
 int main(int argc, char *argv[]) {
 	int listenfd, connfd;
 	socklen_t clientlen;
 	struct sockaddr_storage clientaddr;
-    fd_set read_set, ready_set;
+    static Pool pool;
     
 	if (argc != 2) {
 		fprintf(stderr, "usage %s <port>\n", argv[0]);
@@ -16,38 +18,76 @@ int main(int argc, char *argv[]) {
 	}
 	
 	listenfd = open_listenfd(argv[1]);
-    
-    FD_ZERO(&read_set);
-    FD_SET(STDIN_FILENO, &read_set);
-    FD_SET(listenfd, &read_set);
+    init_pool(listenfd, &pool);
 
 	while (1) {
-        ready_set = read_set;
-        select(listenfd + 1, &ready_set, NULL, NULL, NULL);
-        if (FD_ISSET(STDIN_FILENO, &ready_set))
-                command();
-        if (FD_ISSET(listenfd, &ready_set))
+        pool.ready_set = pool.read_set;
+        pool.nready = select(pool.maxfd + 1, &pool.ready_set, NULL, NULL, NULL);
+        
+        if (FD_ISSET(listenfd, &pool.ready_set)) {
             clientlen = sizeof(clientaddr);
-        connfd = accept(listenfd, (SA *)&clientaddr, &clientlen);
-        echo(connfd);
-        close(connfd);
+            connfd = accept(listenfd, (SA *)&clientaddr, &clientlen);
+            add_client(connfd, &pool);
+        }
+        
+        check_clients(&pool);
 	}
 }
 
-void command() {
-    char buf[MAXLINE];
-    if (!fgets(buf, MAXLINE, stdin))
-        exit(0);
-    printf("%s", buf);
+void init_pool(int listenfd, Pool *p) {
+    p->maxi = -1;
+    for (int i = 0; i < FD_SETSIZE; i++) {
+        p->clientfd[i] = -1;
+    }
+    
+    p->maxfd = listenfd;
+    FD_ZERO(&p->read_set);
+    FD_SET(listenfd, &p->read_set);
 }
 
-void echo(int connfd) {
-    size_t n;
+void add_client(int connfd, Pool *p) {
+    int i;
+    p->nready--;
+    for (i = 0; i < FD_SETSIZE; i++) {
+        if (p->clientfd[i] < 0) {
+            p->clientfd[i] = connfd;
+            rio_readinitb(&p->clientrio[i], connfd);
+            
+            FD_SET(connfd, &p->read_set);
+            
+            if (connfd > p->maxfd)
+                p->maxfd = connfd;
+            if (i > p->maxi)
+                p->maxi = i;
+            break;
+        }
+    }
+    if (i == FD_SETSIZE) {
+        fprintf(stderr, "add_client error: Too many clients\n");
+        exit(0);
+    }
+}
+
+void check_clients(Pool *p) {
+    int connfd, n;
     char buf[MAXLINE];
     rio_t rio;
-    rio_readinitb(&rio, connfd);
-    while((n = rio_readlineb(&rio, buf, MAXLINE)) != 0) {
-        printf("server received %d bytes\n", (int) n);
-        rio_writen(connfd, buf, n);
+    
+    for (int i = 0; (i <= p->maxi) && (p->nready > 0); i++) {
+        connfd = p->clientfd[i];
+        rio = p->clientrio[i];
+        
+        if ((connfd > 0) && (FD_ISSET(connfd, &p->ready_set))) {
+            p->nready--;
+            if ((n = rio_readlineb(&rio, buf, MAXLINE)) != 0) {
+                byte_cnt += n;
+                printf("Server received %d (%d total) bytes on fd %d\n", n, byte_cnt, connfd);
+                rio_writen(connfd, buf, n);
+            } else {
+                close(connfd);
+                FD_CLR(connfd, &p->read_set);
+                p->clientfd[i] = -1;
+            }
+        }
     }
 }

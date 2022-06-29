@@ -5,6 +5,7 @@
 #include <string.h>
 #include <fcntl.h>
 #include <signal.h>
+#include <sys/select.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/mman.h>
@@ -24,6 +25,16 @@ typedef struct
     char *rio_bufptr;
     char rio_buf[MAXBUF];
 } rio_t;
+
+typedef struct {
+    int maxfd;
+    fd_set read_set;
+    fd_set ready_set;
+    int nready;
+    int maxi;
+    int clientfd[FD_SETSIZE];
+    rio_t clientrio[FD_SETSIZE];
+} Pool;
 
 int open_clientfd(char *hostname, char *port);
 int open_listenfd(char *port);
