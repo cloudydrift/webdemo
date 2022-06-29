@@ -1,5 +1,4 @@
-#include "riolib.h"
-#include "socketlib.h"
+#include "socklib.h"
 
 void echo(int connfd);
 void sigchld_handler(int sig);
@@ -21,8 +20,8 @@ int main(int argc, char *argv[]) {
 		clientlen = sizeof(clientaddr);
 		connfd = accept(listenfd, (SA *)&clientaddr, &clientlen);
         getnameinfo((SA *)&clientaddr, clientlen, client_hostname, MAXLINE, client_port, MAXLINE, 0);
-        printf("Connected with (%s, %s)", client_hostname, client_port);
-        if (fork == 0) {
+        printf("Connected with (%s, %s)\n", client_hostname, client_port);
+        if (fork() == 0) {
             close(listenfd);
             echo(connfd);
             close(connfd);
@@ -34,23 +33,18 @@ int main(int argc, char *argv[]) {
 	return 0;
 }
 
-void echo(int connfd) {
-	size_t n;
-	char buf[MAXLINE];
-	rio_t rio;
-
-	rio_readinitb(&rio, connfd);
-
-	while ((n = rio_readlineb(&rio, buf, MAXLINE)) != 0) {
-		printf("%s", buf);
-        sprintf(buf, "Server received %d bytes.\n", (int)n);
-        n = strlen(buf);
-		rio_writen(connfd, buf, n+1);
-	}
+void sigchld_handler(int sig) {
+    while (waitpid(-1, NULL, WNOHANG) > 0);
+    return;
 }
 
-void sigchld_handler(int sig) {
-    while (waitpid(-1, 0, WNOHANG) > 0)
-        ;
-    return;
+void echo(int connfd) {
+    size_t n;
+    char buf[MAXLINE];
+    rio_t rio;
+    rio_readinitb(&rio, connfd);
+    while((n = rio_readlineb(&rio, buf, MAXLINE)) != 0) {
+        printf("server received %d bytes\n", (int) n);
+        rio_writen(connfd, buf, n);
+    }
 }
