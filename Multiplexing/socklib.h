@@ -16,26 +16,16 @@
 #define LISTENQ 1024
 #define MAXBUF 8192
 #define MAXLINE 8192
+#define POOLSIZE 1024
 
 typedef struct sockaddr SA;
 
-typedef struct 
-{
+typedef struct  {
     int rio_fd;
     int rio_cnt;
     char *rio_bufptr;
     char rio_buf[MAXBUF];
 } rio_t;
-
-typedef struct {
-    int maxfd;
-    fd_set read_set;
-    fd_set ready_set;
-    int nready;
-    int maxi;
-    int clientfd[FD_SETSIZE];
-    rio_t clientrio[FD_SETSIZE];
-} Pool;
 
 int open_clientfd(char *hostname, char *port);
 int open_listenfd(char *port);
