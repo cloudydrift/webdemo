@@ -11,6 +11,7 @@
 #include <sys/mman.h>
 #include <sys/wait.h>
 #include <netdb.h>
+#include <sys/epoll.h>
 
 #define LISTENQ 1024
 #define MAXBUF 8192
