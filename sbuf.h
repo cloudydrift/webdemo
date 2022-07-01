@@ -1,5 +1,5 @@
 #include <semaphore.h>
-#include <stdlib.h>
+#include "demo.h"
 
 typedef struct {
     int *buf;
